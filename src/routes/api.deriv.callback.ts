@@ -1,18 +1,11 @@
 
 import { createFileRoute } from '@tanstack/react-router'
 
-import {
-  getSettings,
-  decryptData,
-  getOAuthCookie,
-  clearOAuthCookie,
-  saveSession,
-} from '../lib/deriv-auth'
-
 export const Route = createFileRoute('/api/deriv/callback')({
   server: {
     handlers: {
       GET: async ({ request }) => {
+        const server = await import('../lib/deriv-auth.server')
         const home = new URL('/', request.url)
         const params = new URL(request.url).searchParams
 
@@ -21,20 +14,20 @@ export const Route = createFileRoute('/api/deriv/callback')({
         const error = params.get('error')
 
         if (error || !code || !state) {
-          clearOAuthCookie()
+          server.clearOAuthCookie()
           home.searchParams.set('deriv', 'cancelled')
           return Response.redirect(home.toString(), 302)
         }
 
         try {
-          const { appId, secret } = getSettings()
-          const savedCookie = getOAuthCookie()
+          const { appId, secret } = server.getSettings()
+          const savedCookie = server.getOAuthCookie()
 
           if (!savedCookie) {
             throw new Error('OAuth session expired')
           }
 
-          const saved = await decryptData(savedCookie, secret)
+          const saved = await server.decryptData(savedCookie, secret)
 
           if (
             !saved.state ||
@@ -49,8 +42,7 @@ export const Route = createFileRoute('/api/deriv/callback')({
             client_id: appId,
             code,
             code_verifier: saved.verifier,
-            redirect_uri:
-              'https://neural-trading-engine.hopekariuki367.workers.dev/api/deriv/callback',
+            redirect_uri: server.REDIRECT_URI,
           })
 
           const response = await fetch(
@@ -77,18 +69,18 @@ export const Route = createFileRoute('/api/deriv/callback')({
             throw new Error('Deriv did not return an access token')
           }
 
-          await saveSession(
+          await server.saveSession(
             result.access_token,
             result.expires_in,
             secret,
           )
 
-          clearOAuthCookie()
+          server.clearOAuthCookie()
           home.searchParams.set('deriv', 'connected')
 
           return Response.redirect(home.toString(), 302)
         } catch {
-          clearOAuthCookie()
+          server.clearOAuthCookie()
           home.searchParams.set('deriv', 'error')
 
           return Response.redirect(home.toString(), 302)
