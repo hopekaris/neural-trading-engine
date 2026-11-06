@@ -21,7 +21,7 @@ export function AppShell() {
 
   return (
     <div className="min-h-screen">
-      <header className="sticky top-0 z-20 border-b border-line bg-ink/80 backdrop-blur-xl">
+      <header className="sticky top-0 z-20 border-b border-line bg-ink/95 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-6 gap-y-3 px-4 py-3 sm:px-6">
           <Link to="/" className="flex items-center gap-2.5">
             <span className="grid h-9 w-9 place-items-center rounded-xl bg-pulse/10 ring-1 ring-pulse/40">
@@ -38,78 +38,41 @@ export function AppShell() {
           </Link>
 
           <nav className="flex gap-1 rounded-xl border border-line bg-panel p-1 text-sm">
-            <Link
-              to="/"
-              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-mute transition hover:text-white"
-              activeProps={{ className: '!bg-panel-2 !text-white' }}
-              activeOptions={{ exact: true }}
-            >
+            <Link to="/" className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-mute transition hover:text-white" activeProps={{ className: '!bg-panel-2 !text-white' }} activeOptions={{ exact: true }}>
               <Activity className="h-4 w-4" /> Engine
             </Link>
-
-            <Link
-              to="/matches"
-              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-mute transition hover:text-white"
-              activeProps={{ className: '!bg-panel-2 !text-white' }}
-            >
+            <Link to="/matches" className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-mute transition hover:text-white" activeProps={{ className: '!bg-panel-2 !text-white' }}>
               <Target className="h-4 w-4" /> Matches
             </Link>
-
-            <Link
-              to="/scanner"
-              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-mute transition hover:text-white"
-              activeProps={{ className: '!bg-panel-2 !text-white' }}
-            >
+            <Link to="/scanner" className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-mute transition hover:text-white" activeProps={{ className: '!bg-panel-2 !text-white' }}>
               <Radar className="h-4 w-4" /> Digit scanner
             </Link>
           </nav>
 
           <div className="ml-auto flex items-center gap-2 font-mono text-xs">
-            <span
-              className={`flex items-center gap-2 rounded-lg border px-2.5 py-1.5 ${
-                live
-                  ? 'border-pulse/40 text-pulse'
-                  : mode === 'simulated'
-                    ? 'border-heat/40 text-heat'
-                    : 'border-line text-mute'
-              }`}
-            >
-              <span
-                className={`h-2 w-2 rounded-full ${
-                  live
-                    ? 'live-dot bg-pulse'
-                    : mode === 'simulated'
-                      ? 'bg-heat'
-                      : 'bg-mute'
-                }`}
-              />
+            <span className={`flex items-center gap-2 rounded-lg border px-2.5 py-1.5 ${
+              live ? 'border-pulse/40 text-pulse' : mode === 'simulated' ? 'border-heat/40 text-heat' : 'border-line text-mute'
+            }`}>
+              <span className={`h-2 w-2 rounded-full ${
+                live ? 'live-dot bg-pulse' : mode === 'simulated' ? 'bg-heat' : 'bg-mute'
+              }`} />
               {MODE_LABEL[mode]}
             </span>
 
-            <span
-              className="hidden items-center gap-1.5 rounded-lg border border-line px-2.5 py-1.5 sm:flex"
-              title="WebSocket round-trip time to the broker endpoint"
-            >
+            <span className="hidden items-center gap-1.5 rounded-lg border border-line px-2.5 py-1.5 sm:flex" title="WebSocket round-trip time">
               <Zap className="h-3.5 w-3.5 text-volt" />
-              <span className="num text-white">
-                {snap?.rtt != null ? `${snap.rtt.toFixed(0)}ms` : '—'}
-              </span>
+              <span className="num text-white">{snap?.rtt != null ? `${snap.rtt.toFixed(0)}ms` : '—'}</span>
               <span className="text-mute">rtt</span>
             </span>
 
             <span className="hidden items-center gap-1.5 rounded-lg border border-line px-2.5 py-1.5 md:flex">
               <Radio className="h-3.5 w-3.5 text-volt" />
-              <span className="num text-white">
-                {snap?.ticksPerMin ?? 0}
-              </span>
+              <span className="num text-white">{snap?.ticksPerMin ?? 0}</span>
               <span className="text-mute">ticks/min</span>
             </span>
 
             {mode === 'simulated' && (
-              <button
-                onClick={() => feed?.retryLive()}
-                className="rounded-lg bg-heat/15 px-2.5 py-1.5 text-heat hover:bg-heat/25"
-              >
+              <button onClick={() => feed?.retryLive()} className="rounded-lg bg-heat/15 px-2.5 py-1.5 text-heat hover:bg-heat/25">
                 Retry live
               </button>
             )}
@@ -119,10 +82,8 @@ export function AppShell() {
         <div className="mx-auto max-w-7xl overflow-x-auto px-4 pb-3 sm:px-6">
           <div className="flex min-w-max items-center gap-1.5">
             <span className="label mr-2">Markets</span>
-
             {MARKETS.map((m) => {
               const on = snap?.selected.includes(m.symbol) ?? false
-
               return (
                 <button
                   key={m.symbol}
@@ -130,9 +91,7 @@ export function AppShell() {
                   aria-pressed={on}
                   title={m.name}
                   className={`rounded-full border px-3 py-1 font-mono text-[11px] transition ${
-                    on
-                      ? 'border-pulse/50 bg-pulse/10 text-pulse'
-                      : 'border-line text-mute hover:border-soft/40 hover:text-soft'
+                    on ? 'border-pulse/50 bg-pulse/10 text-pulse' : 'border-line text-mute hover:border-soft/40 hover:text-soft'
                   }`}
                 >
                   {m.short}
@@ -141,24 +100,27 @@ export function AppShell() {
             })}
           </div>
         </div>
-
-        <div className="mx-auto max-w-7xl px-4 pb-3 sm:px-6">
-          <DerivConnect />
-        </div>
       </header>
 
       <main className="grid-bg">
         <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
+          <section className="mb-6 rounded-2xl border border-pulse/30 bg-panel p-4 shadow-lg">
+            <div className="mb-3">
+              <h2 className="text-sm font-bold text-white">Deriv Account Connection</h2>
+              <p className="mt-1 text-xs text-mute">
+                Connect your personal Deriv account securely. Account connection does not place trades.
+              </p>
+            </div>
+            <DerivConnect />
+          </section>
+
           <Outlet />
         </div>
       </main>
 
       <footer className="border-t border-line">
         <div className="mx-auto max-w-7xl px-4 py-6 text-xs leading-relaxed text-mute sm:px-6">
-          Confidence scores measure how unlikely a digit deviation is under
-          pure randomness — they are not win probabilities. Volatility indices
-          are generated by a random number generator, so edges in historical
-          ticks rarely persist. Analysis only; not financial advice.
+          Confidence scores measure how unlikely a digit deviation is under pure randomness — they are not win probabilities. Volatility indices are generated by a random number generator, so edges in historical ticks rarely persist. Analysis only; not financial advice.
         </div>
       </footer>
     </div>
