@@ -1,0 +1,93 @@
+@import 'tailwindcss' source('../');
+
+@theme {
+  --font-sans: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+  --color-ink: #05070b;
+  --color-panel: #0b1018;
+  --color-panel-2: #101722;
+  --color-line: #1c2735;
+  --color-mute: #6b7a90;
+  --color-soft: #a8b4c6;
+  --color-pulse: #3cf2c0;
+  --color-pulse-dim: #1a6e5a;
+  --color-heat: #ffb547;
+  --color-cold: #ff5d7a;
+  --color-volt: #7c8cff;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  @apply m-0 bg-ink text-soft font-sans antialiased;
+  background-image:
+    radial-gradient(
+      1200px 600px at 85% -10%,
+      rgba(60, 242, 192, 0.07),
+      transparent 60%
+    ),
+    radial-gradient(
+      900px 500px at -10% 20%,
+      rgba(124, 140, 255, 0.06),
+      transparent 60%
+    );
+  background-attachment: fixed;
+}
+
+.grid-bg {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+.panel {
+  @apply rounded-2xl border border-line bg-panel/90 backdrop-blur;
+}
+
+.label {
+  @apply font-mono text-[10px] uppercase tracking-[0.18em] text-mute;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+  @apply font-mono;
+}
+
+@keyframes blip {
+  0% {
+    transform: scale(1.25);
+    background: var(--color-pulse);
+    color: var(--color-ink);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.blip {
+  animation: blip 600ms ease-out;
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(60, 242, 192, 0.6);
+  }
+  50% {
+    opacity: 0.7;
+    box-shadow: 0 0 0 6px rgba(60, 242, 192, 0);
+  }
+}
+.live-dot {
+  animation: breathe 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blip,
+  .live-dot {
+    animation: none;
+  }
+}
