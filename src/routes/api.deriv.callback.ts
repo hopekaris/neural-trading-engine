@@ -42,7 +42,8 @@ export const Route = createFileRoute('/api/deriv/callback')({
             client_id: appId,
             code,
             code_verifier: saved.verifier,
-            redirect_uri: server.REDIRECT_URI,
+            redirect_uri:
+              'https://neural-trading-engine.hopekariuki367.workers.dev/api/deriv/callback',
           })
 
           const response = await fetch(
@@ -82,7 +83,6 @@ export const Route = createFileRoute('/api/deriv/callback')({
         } catch {
           server.clearOAuthCookie()
           home.searchParams.set('deriv', 'error')
-
           return Response.redirect(home.toString(), 302)
         }
       },
