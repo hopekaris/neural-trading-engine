@@ -1,27 +1,9 @@
-export const MATCHES_MARKETS = [
-  "R_10",
-  "R_25",
-  "R_50",
-  "R_75",
-  "R_100",
-  "1HZ10V",
-  "1HZ25V",
-  "1HZ50V",
-  "1HZ75V",
-  "1HZ100V",
-] as const;
 
-export type MatchesMarket = (typeof MATCHES_MARKETS)[number];
+import { WINDOW } from "./markets";
 
-export const TICK_MEMORY = 5000;
 const VALIDATION_TICKS = 1000;
 const RANDOM_BASELINE = 0.10;
-const MIN_VALIDATION_SELECTIONS = 30;
-
-export type MatchTick = {
-  quote: string | number;
-  pip_size?: number;
-};
+const MIN_SELECTIONS = 30;
 
 export type DigitResult = {
   digit: number;
@@ -33,7 +15,7 @@ export type DigitResult = {
 };
 
 export type MatchesResult = {
-  market: MatchesMarket;
+  market: string;
   status: "CHECK" | "WAIT" | "COLLECTING";
   predictedDigit: number | null;
   estimatedProbability: number;
@@ -44,33 +26,11 @@ export type MatchesResult = {
   message: string;
 };
 
-/**
- * Deriv quotes should ideally be kept as strings so trailing decimal
- * places are preserved. pip_size helps restore precision for numbers.
- */
-function getLastDigit(tick: MatchTick): number | null {
-  let quote: string;
-
-  if (typeof tick.quote === "number") {
-    quote =
-      Number.isInteger(tick.pip_size)
-        ? tick.quote.toFixed(tick.pip_size)
-        : String(tick.quote);
-  } else {
-    quote = tick.quote.trim();
-  }
-
-  const digits = quote.replace(/\D/g, "");
-  if (!digits.length) return null;
-
-  return Number(digits[digits.length - 1]);
-}
-
-function wilsonLowerBound(successes: number, total: number): number {
+function wilsonLowerBound(hits: number, total: number): number {
   if (total === 0) return 0;
 
   const z = 1.96;
-  const p = successes / total;
+  const p = hits / total;
   const z2 = z * z;
   const denominator = 1 + z2 / total;
 
@@ -78,53 +38,56 @@ function wilsonLowerBound(successes: number, total: number): number {
   const margin =
     z *
     Math.sqrt(
-      (p * (1 - p)) / total + z2 / (4 * total * total),
+      (p * (1 - p)) / total +
+        z2 / (4 * total * total),
     );
 
   return Math.max(0, (centre - margin) / denominator);
 }
 
-/**
- * Predicts the next digit from overall frequencies and recent
- * one-, two-, and three-digit contexts.
- */
 function predictProbabilities(history: number[]): number[] {
   const scores = Array(10).fill(1) as number[];
 
-  // Overall digit frequencies.
+  // Overall historical digit frequency.
   for (const digit of history) {
     scores[digit] += 1;
   }
 
-  // Recent sequence contexts.
-  const contextLengths = [
+  // Recent sequence context.
+  const contexts = [
     { length: 1, weight: 0.5 },
-    { length: 2, weight: 1.0 },
+    { length: 2, weight: 1 },
     { length: 3, weight: 1.5 },
   ];
 
-  for (const context of contextLengths) {
+  for (const context of contexts) {
     if (history.length <= context.length) continue;
 
-    const recentContext = history.slice(-context.length);
+    const recent = history.slice(-context.length);
     const counts = Array(10).fill(0) as number[];
 
-    for (let i = context.length; i < history.length; i++) {
-      const previous = history.slice(i - context.length, i);
-
-      const matches = previous.every(
-        (value, index) => value === recentContext[index],
+    for (
+      let i = context.length;
+      i < history.length;
+      i++
+    ) {
+      const matches = recent.every(
+        (value, index) =>
+          history[i - context.length + index] === value,
       );
 
-      if (matches) counts[history[i]] += 1;
+      if (matches) {
+        counts[history[i]]++;
+      }
     }
 
-    for (let digit = 0; digit <= 9; digit++) {
+    for (let digit = 0; digit < 10; digit++) {
       scores[digit] += counts[digit] * context.weight;
     }
   }
 
   const total = scores.reduce((sum, value) => sum + value, 0);
+
   return scores.map((value) => value / total);
 }
 
@@ -135,60 +98,58 @@ function rankDigits(probabilities: number[]): number[] {
     .map((item) => item.digit);
 }
 
-/**
- * Runs chronological walk-forward validation.
- * Each test prediction only sees ticks that came before it.
- */
 function validateModel(digits: number[]) {
   const start = Math.max(1, digits.length - VALIDATION_TICKS);
 
   const selections = Array(10).fill(0) as number[];
   const hits = Array(10).fill(0) as number[];
 
-  let correctTopPredictions = 0;
-  let totalPredictions = 0;
+  let correct = 0;
+  let total = 0;
 
   for (let i = start; i < digits.length; i++) {
-    const trainingHistory = digits.slice(0, i);
-    const actualDigit = digits[i];
+    // Only use ticks available before the prediction.
+    const training = digits.slice(0, i);
+    const actual = digits[i];
 
-    const probabilities = predictProbabilities(trainingHistory);
-    const predictedDigit = rankDigits(probabilities)[0];
+    const probabilities = predictProbabilities(training);
+    const prediction = rankDigits(probabilities)[0];
 
-    selections[predictedDigit] += 1;
-    totalPredictions += 1;
+    selections[prediction]++;
+    total++;
 
-    if (predictedDigit === actualDigit) {
-      hits[predictedDigit] += 1;
-      correctTopPredictions += 1;
+    if (prediction === actual) {
+      hits[prediction]++;
+      correct++;
     }
   }
 
   return {
     selections,
     hits,
-    totalPredictions,
-    topAccuracy:
-      totalPredictions > 0
-        ? correctTopPredictions / totalPredictions
-        : null,
-    topAccuracyLowerBound:
-      totalPredictions > 0
-        ? wilsonLowerBound(correctTopPredictions, totalPredictions)
-        : null,
+    total,
+    accuracy: total ? correct / total : null,
+    accuracyLowerBound: total
+      ? wilsonLowerBound(correct, total)
+      : null,
   };
 }
 
 export function scanMatches(
-  ticks: MatchTick[],
-  market: MatchesMarket,
+  inputDigits: readonly number[],
+  market: string,
 ): MatchesResult {
-  const usableTicks = ticks.slice(-TICK_MEMORY);
-  const digits = usableTicks
-    .map(getLastDigit)
-    .filter((digit): digit is number => digit !== null);
+  const digits = inputDigits
+    .slice(-WINDOW)
+    .map(Number)
+    .filter(
+      (digit) =>
+        Number.isInteger(digit) &&
+        digit >= 0 &&
+        digit <= 9,
+    );
 
-  if (digits.length < TICK_MEMORY) {
+  if (digits.length < WINDOW) {
     return {
       market,
       status: "COLLECTING",
@@ -198,7 +159,7 @@ export function scanMatches(
       validationSamples: 0,
       digits: [],
       ticksUsed: digits.length,
-      message: `Collecting ticks: ${digits.length}/${TICK_MEMORY}`,
+      message: `Collecting ticks: ${digits.length}/${WINDOW}`,
     };
   }
 
@@ -218,41 +179,41 @@ export function scanMatches(
       validationHitRate:
         selections > 0 ? hits / selections : null,
       lowerBound:
-        selections > 0 ? wilsonLowerBound(hits, selections) : null,
+        selections > 0
+          ? wilsonLowerBound(hits, selections)
+          : null,
     };
   });
 
   const best = results[0];
 
-  const enoughEvidence =
-    best.validationSelections >= MIN_VALIDATION_SELECTIONS;
+  const enoughSelections =
+    best.validationSelections >= MIN_SELECTIONS;
 
-  const validatedAboveBaseline =
-    enoughEvidence &&
+  const digitPassed =
+    enoughSelections &&
     best.lowerBound !== null &&
     best.lowerBound > RANDOM_BASELINE;
 
-  const modelAboveBaseline =
-    validation.topAccuracyLowerBound !== null &&
-    validation.topAccuracyLowerBound > RANDOM_BASELINE;
+  const overallPassed =
+    validation.accuracyLowerBound !== null &&
+    validation.accuracyLowerBound > RANDOM_BASELINE;
 
   const status =
-    validatedAboveBaseline && modelAboveBaseline
-      ? "CHECK"
-      : "WAIT";
+    digitPassed && overallPassed ? "CHECK" : "WAIT";
 
   return {
     market,
     status,
     predictedDigit: best.digit,
     estimatedProbability: best.probability,
-    validationAccuracy: validation.topAccuracy,
-    validationSamples: validation.totalPredictions,
+    validationAccuracy: validation.accuracy,
+    validationSamples: validation.total,
     digits: results,
     ticksUsed: digits.length,
     message:
       status === "CHECK"
-        ? "The leading digit passed the validation rules. This is statistical evidence, not a guarantee."
-        : "No digit has passed the high-confidence validation rules. Wait for more evidence.",
+        ? "Historical validation passed the configured statistical rules. This is not a guarantee."
+        : "No digit has passed the configured high-confidence validation rules.",
   };
 }
